@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d332578643f216a419dbfede8329dd84, type: 3}
+  m_Name: Hex Tile Generation Settings
+  m_EditorClassIdentifier: 
+  Rubber: {fileID: 9147598963748545789, guid: a978197f86f157942a6b9d61c1b11e83, type: 3}
+  Wall: {fileID: 6883952125077257771, guid: 7c709d88fb0f269469eabfaabe5bfa22, type: 3}
