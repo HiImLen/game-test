@@ -60,7 +60,7 @@ public class LevelSettings : ScriptableObject
         {
             int sublevelIndex = Array.IndexOf(levelData.SubLevels, sublevel);
             bool isLastSublevel = levelData.SubLevels.Last() == sublevel;
-            string nextSublevel = isLastSublevel ? levelData.SubLevels[0] : levelData.SubLevels[sublevelIndex + 1];
+            string nextSublevel = isLastSublevel ? null : levelData.SubLevels[sublevelIndex + 1];
 
             return nextSublevel;
         }
