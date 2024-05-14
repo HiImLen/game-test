@@ -21,6 +21,7 @@ public class BrushController : MonoBehaviour
     private Transform _cylinderTransform;
     private Vector3 _cylinderScale;
 
+    private bool _canSpin = false;
     private bool _isHub1 = true;
     private bool _isClockwise = true;
 
@@ -56,6 +57,7 @@ public class BrushController : MonoBehaviour
 
     public void OnTouchInput()
     {
+        if (!_canSpin) return;
         SwitchHub();
         _cameraManager.SwitchCamera(_isHub1 ? "Hub1" : "Hub2");
         OnTouchInputEvent?.Invoke(_isHub1 ? "Hub1" : "Hub2");
@@ -78,6 +80,7 @@ public class BrushController : MonoBehaviour
     [Button]
     public void HideBrush()
     {
+        _canSpin = false;
         _hub1Transform.parent = _brushTransform;
         _hub2Transform.parent = _brushTransform;
         ChangeDistanceOnComplete(0.01f, () =>
@@ -149,6 +152,9 @@ public class BrushController : MonoBehaviour
         LeanTween.value(gameObject, _distance, distance, 0.15f).setOnUpdate((float value) =>
         {
             _distance = value;
+        }).setOnComplete(() =>
+        {
+            _canSpin = true;
         });
     }
 

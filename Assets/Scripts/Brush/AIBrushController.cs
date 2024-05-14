@@ -1,7 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using EasyButtons;
 using UnityEngine;
 
@@ -14,6 +12,7 @@ public class AIBrushController : MonoBehaviour
     [SerializeField] private GameObject _cylinder;
     [SerializeField] private float _speed = 200f;
     [SerializeField] private float _distance = 4f;
+    [SerializeField] private float _nearestThreshold = 1.2f;
     [SerializeField] private Vector3 _startPosition;
     [SerializeField] private ParticleSystem _particleSystem;
 
@@ -28,7 +27,6 @@ public class AIBrushController : MonoBehaviour
     private bool _isHub1 = true;
     private bool _isClockwise = true;
     private float _timePassed = 0f;
-    private bool _isSpinning = false;
     [SerializeField] private float _timeToSpin = 1f;
 
     void Start()
@@ -51,7 +49,11 @@ public class AIBrushController : MonoBehaviour
     private void Update()
     {
         _timePassed += Time.deltaTime;
-        CalculateWhenToSpin();
+        if (_timePassed >= _timeToSpin)
+        {
+            _timePassed = 0f;
+            CalculateWhenToSpin();
+        }
         CylinderCalculate();
         Spin();
     }
@@ -76,11 +78,7 @@ public class AIBrushController : MonoBehaviour
         _isHub1 = true;
         LeanTween.move(_brush, new Vector3(_startPosition.x, 1f, _startPosition.z), 1.5f).setEaseOutElastic().setDelay(0.5f).setOnComplete(() =>
         {
-            ChangeDistanceOnComplete(4f, () =>
-            {
-                _timePassed = 0f;
-                _isSpinning = false;
-            });
+            ChangeDistanceOnShow(4f);
         });
     }
 
@@ -89,7 +87,6 @@ public class AIBrushController : MonoBehaviour
     {
         _hub1Transform.parent = _brushTransform;
         _hub2Transform.parent = _brushTransform;
-        _isSpinning = true;
         ChangeDistanceOnComplete(0.01f, () =>
         {
             LeanTween.move(_brush, new Vector3(_startPosition.x, -3.5f, _startPosition.z), 0.75f).setEaseInOutBack().setOnComplete(() =>
@@ -103,17 +100,15 @@ public class AIBrushController : MonoBehaviour
     private void CalculateWhenToSpin()
     {
         if (!_ingameManager.IsGameStarted) return;
-        if (_isSpinning) return;
         Vector3[] rubberPositions = new Vector3[_ingameManager.Rubbers.Count];
         rubberPositions = _ingameManager.Rubbers.ConvertAll(rubber => rubber.transform.position).ToArray();
 
         // Remove positions that color is Ingamemanager.Uncolored
         for (int i = 0; i < rubberPositions.Length; i++)
         {
-            MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
             Renderer renderer = _ingameManager.Rubbers[i].GetComponent<Renderer>();
-            renderer.GetPropertyBlock(propertyBlock);
-            Color color = propertyBlock.GetColor("_Color");
+            renderer.GetPropertyBlock(propBlock);
+            Color color = propBlock.GetColor("_Color");
 
             if (color == _ingameManager.Uncolored)
             {
@@ -122,65 +117,31 @@ public class AIBrushController : MonoBehaviour
         }
 
         // Get the position of the current spinning hub
-        Vector3 currentHubPosition = _isHub1 ? _hub1Transform.position : _hub2Transform.position;
+        Vector3 currentHubPosition = _isHub1 ? _hub2Transform.position : _hub1Transform.position;
 
-        float nearestDistanceSqr = float.MaxValue;
+        float nearestDistance = float.MaxValue;
         Vector3 nearestRubber = Vector3.zero;
 
         // Find the nearest tile that color is Ingamemanager.Colored
-        MaterialPropertyBlock coloredPropertyBlock = new MaterialPropertyBlock();
-        coloredPropertyBlock.SetColor("_Color", _ingameManager.Colored);
-
-        // Create a dictionary to map rubber positions to their corresponding renderers
-        Dictionary<Vector3, Renderer> rubberRenderers = new Dictionary<Vector3, Renderer>();
-        foreach (var rubber in _ingameManager.Rubbers)
-        {
-            rubberRenderers[rubber.transform.position] = rubber.GetComponent<Renderer>();
-        }
-
         foreach (Vector3 rubberPosition in rubberPositions)
         {
-            MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
-            Renderer renderer = rubberRenderers[rubberPosition];
-            renderer.GetPropertyBlock(propertyBlock);
-
-            if (propertyBlock.GetColor("_Color") == coloredPropertyBlock.GetColor("_Color")) continue;
-            float distanceSqr = (currentHubPosition - rubberPosition).sqrMagnitude;
-            if (distanceSqr < nearestDistanceSqr)
+            float distance = Vector3.Distance(currentHubPosition, rubberPosition);
+            if (distance < nearestDistance && distance < _nearestThreshold)
             {
-                nearestDistanceSqr = distanceSqr;
+                nearestDistance = distance;
                 nearestRubber = rubberPosition;
             }
         }
 
-        StartCoroutine(SpinCoroutine(!_isHub1 ? _hub1Transform : _hub2Transform, nearestRubber));
-    }
-
-    IEnumerator SpinCoroutine(Transform spinningHub, Vector3 nearestRubber)
-    {
-        _isSpinning = true;
-        float nearestDistance = float.MaxValue;
-        float distance = Vector3.Distance(spinningHub.position, nearestRubber);
-
-        for (int i = 0; i < _timeToSpin / 0.1f; i++)
+        // Check if the current hub is on the nearest tile based on some distance threshold
+        float distanceToNearestTile = Vector3.Distance(currentHubPosition, nearestRubber);
+        if (distanceToNearestTile < _nearestThreshold)
         {
-            if (distance < nearestDistance)
-                nearestDistance = distance;
-            yield return new WaitForSeconds(0.1f);
-        }
-
-        while (true)
-        {
-            double tolerance = 0.2;
-            if (Math.Abs(distance - nearestDistance) < tolerance)
+            if (Physics.SphereCast(currentHubPosition, 1.1f, Vector3.down, out RaycastHit hit, 1.5f, LayerMask.GetMask("Tile")))
             {
                 OnSpin();
-                break;
             }
-            yield return new WaitForSeconds(0.1f);
         }
-        _isSpinning = false;
-        _timePassed = 0f;
     }
 
 
@@ -234,13 +195,13 @@ public class AIBrushController : MonoBehaviour
         });
     }
 
-    public void ChangeDistanceOnComplete(float distance, Action onComplete, float delay = 0.2f)
+    public void ChangeDistanceOnComplete(float distance, Action onComplete)
     {
         LeanTween.value(gameObject, _distance, distance, 0.15f).setOnUpdate((float value) =>
         {
             _distance = value;
         });
-        LeanTween.delayedCall(delay, onComplete);
+        LeanTween.delayedCall(0.2f, onComplete);
     }
 
     public void SetParticleColor(Color color)
@@ -264,8 +225,6 @@ public class AIBrushController : MonoBehaviour
     IEnumerator RespawnCoroutine()
     {
         HideBrush();
-        // Stop counting time when respawning
-        StopCoroutine(nameof(SpinCoroutine));
         yield return new WaitForSeconds(1.1f);
         ShowBrush();
     }

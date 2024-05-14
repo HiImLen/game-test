@@ -151,6 +151,48 @@ public class GameManager : MonoBehaviour
         StartCoroutine(SetReadyStateDelay());
     }
 
+    public void LoadNextSubLevel()
+    {
+        string currentMainLevel = DataManager.SaveData.CurrentMainLevel;
+        string currentSubLevel = DataManager.SaveData.CurrentSubLevel;
+
+        string nextSubLevel = DataManager.LevelSettings.GetNextSublevel(currentMainLevel, currentSubLevel);
+
+        if (nextSubLevel != null)
+        {
+            DataManager.SaveData.CurrentSubLevel = nextSubLevel;
+        }
+        else
+        {
+            string nextMainLevel = DataManager.LevelSettings.GetNextLevel(currentMainLevel);
+            DataManager.SaveData.CurrentMainLevel = nextMainLevel;
+            DataManager.SaveData.CurrentSubLevel = "0";
+        }
+
+        SetOverrideLevel(DataManager.SaveData.CurrentMainLevel, DataManager.SaveData.CurrentSubLevel);
+    }
+
+    public void LoadPreviousSubLevel()
+    {
+        string currentMainLevel = DataManager.SaveData.CurrentMainLevel;
+        string currentSubLevel = DataManager.SaveData.CurrentSubLevel;
+
+        string previousSubLevel = DataManager.LevelSettings.GetPreviousSubLevel(currentMainLevel, currentSubLevel);
+
+        if (previousSubLevel != null)
+        {
+            DataManager.SaveData.CurrentSubLevel = previousSubLevel;
+        }
+        else
+        {
+            string previousMainLevel = DataManager.LevelSettings.GetPreviousLevel(currentMainLevel);
+            DataManager.SaveData.CurrentMainLevel = previousMainLevel;
+            DataManager.SaveData.CurrentSubLevel = DataManager.LevelSettings.GetLastSublevel(previousMainLevel);
+        }
+
+        SetOverrideLevel(DataManager.SaveData.CurrentMainLevel, DataManager.SaveData.CurrentSubLevel);
+    }
+
     private IEnumerator SetReadyStateDelay()
     {
         yield return new WaitForSeconds(0.5f);
